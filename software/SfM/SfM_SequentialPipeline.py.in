@@ -35,7 +35,7 @@ input_dir = sys.argv[1]
 output_dir = sys.argv[2]
 
 matches_dir = os.path.join(output_dir, "matches")
-reconstruction_dir = os.path.join(output_dir, "reconstruction_sequential")
+reconstruction_dir = os.path.join(output_dir, "only_reconstruction_sequential")
 camera_file_params = os.path.join(CAMERA_SENSOR_WIDTH_DIRECTORY, "sensor_width_camera_database.txt")
 
 print ("Using input dir  : ", input_dir)
@@ -46,7 +46,7 @@ if not os.path.exists(output_dir):
 if not os.path.exists(matches_dir):
   os.mkdir(matches_dir)
 
-file_path = output_dir + "/sfm_timerecord.txt"
+file_path = output_dir + "/isfm_timerecord.txt"
 flog=open(file_path,'w')
 
 
@@ -63,16 +63,18 @@ flog.write("before compute features \t\t" + time.asctime(time.localtime(time.tim
 pFeatures = subprocess.Popen([os.path.join(I23DSFM_SFM_BIN, "i23dSFM_main_ComputeFeatures"),  "-i", matches_dir+"/sfm_data.json", "-o", matches_dir, "-m", "SIFT", "-p", "HIGH" ])
 pFeatures.wait()
 
-end=time.time()
-print("sift spend time:"+str(end-start))
-start=end
+end = time.time()
+flog.write("sift spend time:"+str(end-start) + '\n')
+start = end
 
 
 print ("\033[31m step 3 : before compute matches\033[00m " + time.asctime(time.localtime(time.time())))
 flog.write("before compute matches \t\t\t" + time.asctime(time.localtime(time.time())) + '\n')
 pMatches = subprocess.Popen( [os.path.join(I23DSFM_SFM_BIN, "i23dSFM_main_ComputeMatches"), "-i", matches_dir+"/sfm_data.json", "-o", matches_dir,"-G","0"] )
 pMatches.wait()
-
+end = time.time()
+flog.write("match spend time:"+str(end-start) + '\n')
+start = end
 
 print("match spend time:"+str(time.time()-start))
 
@@ -87,22 +89,34 @@ print ("\033[31m step 4 : before Incremental reconstruction\033[00m " + time.asc
 flog.write("before Incremental reconstruction \t" + time.asctime(time.localtime(time.time())) + '\n')
 pRecons = subprocess.Popen( [os.path.join(I23DSFM_SFM_BIN, "i23dSFM_main_IncrementalSfM"),  "-i", matches_dir+"/sfm_data.json", "-m", matches_dir, "-o", reconstruction_dir, "-r", "1"] )
 pRecons.wait()
+end = time.time()
+flog.write("isfm spend time:"+str(end-start) + '\n')
+start = end
 
 print ("\033[31m step 5 : before colorize structure\033[00m " + time.asctime(time.localtime(time.time())))
 flog.write("before colorize structure \t\t" + time.asctime(time.localtime(time.time())) + '\n')
 pRecons = subprocess.Popen( [os.path.join(I23DSFM_SFM_BIN, "i23dSFM_main_ComputeSfM_DataColor"),  "-i", reconstruction_dir+"/sfm_data.json", "-o", os.path.join(reconstruction_dir,"colorized.ply")] )
 pRecons.wait()
+end = time.time()
+flog.write("colorize spend time:"+str(end-start) + '\n')
+start = end
 
 # optional, compute final valid structure from the known camera poses
 print ("\033[31m step 6 : before structure from known poses\033[00m " + time.asctime(time.localtime(time.time())))
 flog.write("before structure from known posses \t" + time.asctime(time.localtime(time.time())) + '\n')
 pRecons = subprocess.Popen( [os.path.join(I23DSFM_SFM_BIN, "i23dSFM_main_ComputeStructureFromKnownPoses"),  "-i", reconstruction_dir+"/sfm_data.json", "-m", matches_dir, "-f", os.path.join(matches_dir, "matches.f.txt"), "-o", os.path.join(reconstruction_dir,"robust.json")] )
 pRecons.wait()
+end = time.time()
+flog.write("structure from known poses spend time:"+str(end-start) + '\n')
+start = end
 
 print ("\033[31m step 7 : before write ply files\033[00m " + time.asctime(time.localtime(time.time())))
 flog.write("before write ply files \t\t\t" + time.asctime(time.localtime(time.time())) + '\n')
 pRecons = subprocess.Popen( [os.path.join(I23DSFM_SFM_BIN, "i23dSFM_main_ComputeSfM_DataColor"),  "-i", reconstruction_dir+"/robust.json", "-o", os.path.join(reconstruction_dir,"robust_colorized.ply"), "-p", os.path.join(reconstruction_dir,"photo_align.ply"), "-m", reconstruction_dir] )
 pRecons.wait()
+end = time.time()
+flog.write("srite ply spend time:"+str(end-start) + '\n')
+start = end
 
 print ("\033[31m finish time\033[00m " + time.asctime(time.localtime(time.time())))
 flog.write("finish time \t\t\t\t" + time.asctime(time.localtime(time.time())) + '\n')
